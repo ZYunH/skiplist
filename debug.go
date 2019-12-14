@@ -1,6 +1,6 @@
 package skiplist
 
-func printSkipList(l *skiplist) {
+func printSkipList(l *SkipList) {
 	for i := l.level - 1; i >= 0; i-- {
 		print(i, " ")
 		hdr := l.header.levels[i]

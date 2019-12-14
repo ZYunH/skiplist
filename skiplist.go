@@ -10,7 +10,7 @@ const (
 	defaultRandSeed = 0
 )
 
-type skiplist struct {
+type SkipList struct {
 	header *node
 	tail   *node
 	length int64
@@ -21,40 +21,19 @@ type skiplist struct {
 	rnd      *rand.Rand
 }
 
-type _levelNode struct {
-	next *node
-	span uint
-}
-
-type node struct {
-	val    string
-	score  int64
-	pre    *node
-	levels []_levelNode
-}
-
-func newNode(level int, score int64, val string) *node {
-	return &node{
-		val:    val,
-		score:  score,
-		pre:    nil,
-		levels: make([]_levelNode, level),
-	}
-}
-
-func New(maxLevel int, p float64, randSeed int64) *skiplist {
-	if maxLevel <= 1 || p <= 0 {
+func New(maxlevel int, p float64, randseed int64) *SkipList {
+	if maxlevel <= 1 || p <= 0 {
 		panic("maxLevel must greater than 1, p must greater than 0")
 	}
 
-	s := &skiplist{
+	s := &SkipList{
 		header:   nil,
 		tail:     nil,
 		length:   0,
 		level:    1,
-		maxLevel: maxLevel,
+		maxLevel: maxlevel,
 		p:        p,
-		rnd:      rand.New(rand.NewSource(randSeed)),
+		rnd:      rand.New(rand.NewSource(randseed)),
 	}
 
 	s.header = newNode(s.maxLevel, 0, "")
@@ -69,11 +48,11 @@ func New(maxLevel int, p float64, randSeed int64) *skiplist {
 	return s
 }
 
-func NewDefault() *skiplist {
+func NewDefault() *SkipList {
 	return New(defaultMaxLevel, defaultP, defaultRandSeed)
 }
 
-func (s *skiplist) randomLevel() int {
+func (s *SkipList) randomLevel() int {
 	level := 1
 
 	for s.rnd.Float64() < s.p {
@@ -86,7 +65,7 @@ func (s *skiplist) randomLevel() int {
 	return level
 }
 
-func (s *skiplist) Insert(score int64, val string) *node {
+func (s *SkipList) Insert(score int64, val string) *node {
 	update := make([]*node, s.maxLevel)
 	rank := make([]uint, s.maxLevel)
 
@@ -150,7 +129,7 @@ func (s *skiplist) Insert(score int64, val string) *node {
 
 	// Update new node's next's pre, Because the levels[0] is
 	// doubled link list. But if new node's next is NIL, we
-	// need to set s.tail to the new node.
+	// need to change s.tail to the new node.
 	if n.levels[0].next != nil {
 		n.levels[0].next.pre = n
 	} else {
@@ -162,7 +141,7 @@ func (s *skiplist) Insert(score int64, val string) *node {
 	return n
 }
 
-func (s *skiplist) Delete(score int64, val string) bool {
+func (s *SkipList) Delete(score int64, val string) bool {
 	update := make([]*node, s.maxLevel)
 	n := s.header
 	for i := s.level - 1; i >= 0; i-- {
@@ -182,7 +161,7 @@ func (s *skiplist) Delete(score int64, val string) bool {
 	return false
 }
 
-func (s *skiplist) delete(n *node, update []*node) {
+func (s *SkipList) delete(n *node, update []*node) {
 	// Delete node and update span for all levels.
 	for i := 0; i < s.level; i++ {
 		if update[i].levels[i].next == n {
@@ -207,9 +186,40 @@ func (s *skiplist) delete(n *node, update []*node) {
 	s.length -= 1
 }
 
-func (s *skiplist) First(score int64) *node {
+func (s *SkipList) Len() int64 {
+	return s.length
+}
+
+func (s *SkipList) Head() *node {
 	if s.length == 0 {
 		return nil
 	}
 	return s.header.levels[0].next
+}
+
+func (s *SkipList) Tail() *node { return s.tail }
+
+type node struct {
+	val    string
+	score  int64
+	pre    *node
+	levels []_nodeLevel
+}
+
+func newNode(level int, score int64, val string) *node {
+	return &node{
+		val:    val,
+		score:  score,
+		pre:    nil,
+		levels: make([]_nodeLevel, level),
+	}
+}
+
+func (n *node) Val() string { return n.val }
+
+func (n *node) Score() int64 { return n.score }
+
+type _nodeLevel struct {
+	next *node
+	span uint
 }
