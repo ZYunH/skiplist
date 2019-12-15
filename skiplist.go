@@ -2,6 +2,8 @@ package skiplist
 
 import (
 	"math/rand"
+
+	"github.com/ZYunH/rng"
 )
 
 const (
@@ -51,6 +53,19 @@ func New(maxlevel int, p float64, randseed int64) *SkipList {
 func NewDefault() *SkipList {
 	return New(defaultMaxLevel, defaultP, defaultRandSeed)
 }
+
+func (s *SkipList) Len() int64 {
+	return s.length
+}
+
+func (s *SkipList) Head() *node {
+	if s.length == 0 {
+		return nil
+	}
+	return s.header.levels[0].next
+}
+
+func (s *SkipList) Tail() *node { return s.tail }
 
 func (s *SkipList) randomLevel() int {
 	level := 1
@@ -186,18 +201,78 @@ func (s *SkipList) delete(n *node, update []*node) {
 	s.length -= 1
 }
 
-func (s *SkipList) Len() int64 {
-	return s.length
+func (s *SkipList) rng() *rng.Int64 {
+	if s.length == 0 {
+		return rng.NewInt64(0, 0, true, true)
+	}
+	return rng.NewInt64(s.Head().score, s.Tail().score, false, false)
 }
 
-func (s *SkipList) Head() *node {
+func (s *SkipList) FirstInRange(r *rng.Int64) *node {
 	if s.length == 0 {
 		return nil
 	}
-	return s.header.levels[0].next
+
+	sr := s.rng()
+	sr = rng.Int64Inter(r, sr)
+	if sr.IsEmpty() {
+		return nil
+	}
+
+	n := s.header
+	for i := s.level - 1; i >= 0; i-- {
+		for n.levels[i].next != nil &&
+			(n.levels[i].next.score < sr.Start() || !sr.In(n.levels[i].next.score)) {
+			n = n.levels[i].next
+		}
+	}
+
+	return n.levels[0].next
 }
 
-func (s *SkipList) Tail() *node { return s.tail }
+func (s *SkipList) LastInRange(r *rng.Int64) *node {
+	if s.length == 0 {
+		return nil
+	}
+
+	sr := s.rng()
+	sr = rng.Int64Inter(r, sr)
+	if sr.IsEmpty() {
+		return nil
+	}
+
+	n := s.header
+	for i := s.level - 1; i >= 0; i-- {
+		for n.levels[i].next != nil &&
+			(n.levels[i].next.score < sr.Start() || sr.In(n.levels[i].next.score)) {
+			n = n.levels[i].next
+		}
+	}
+
+	return n
+}
+
+func (s *SkipList) DeleteByRange(r *rng.Int64) (removed int) {
+	update := make([]*node, s.maxLevel)
+
+	n := s.header
+	for i := s.level - 1; i >= 0; i-- {
+		for n.levels[i].next != nil &&
+			(n.levels[i].next.score < r.Start() || !r.In(n.levels[i].next.score)) {
+			n = n.levels[i].next
+		}
+		update[i] = n
+	}
+
+	n = n.levels[0].next
+	for n != nil && r.In(n.score) {
+		removed += 1
+		next := n.levels[0].next
+		s.delete(n, update)
+		n = next
+	}
+	return removed
+}
 
 type node struct {
 	val    string
