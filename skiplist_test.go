@@ -6,7 +6,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	l := New(10,0.3,2)
+	l := New(10, 0.3, 2)
 	l.Insert(12, "12")
 	l.Insert(13, "13")
 	l.Insert(14, "14")
@@ -16,6 +16,8 @@ func TestNew(t *testing.T) {
 	l.Insert(17, "17")
 	printSkipList(l)
 	l.Delete(17, "17")
+	printSkipList(l)
+	l.Update(14, "14", 16)
 	printSkipList(l)
 }
 

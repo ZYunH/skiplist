@@ -8,7 +8,7 @@ func printSkipList(l *SkipList) {
 		x := hdr.next
 
 		for x != nil {
-			print("[val:", x.val, " span:", x.levels[i].span, "] -> ")
+			print("[val:", x.val, " span:", x.levels[i].span, " score:", x.score, "] -> ")
 			x = x.levels[i].next
 		}
 		print("nil")

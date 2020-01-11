@@ -13,8 +13,8 @@ const (
 )
 
 type SkipList struct {
-	header *node
-	tail   *node
+	header *Node
+	tail   *Node
 	length int64
 	level  int
 
@@ -58,14 +58,14 @@ func (s *SkipList) Len() int64 {
 	return s.length
 }
 
-func (s *SkipList) Head() *node {
+func (s *SkipList) Head() *Node {
 	if s.length == 0 {
 		return nil
 	}
 	return s.header.levels[0].next
 }
 
-func (s *SkipList) Tail() *node { return s.tail }
+func (s *SkipList) Tail() *Node { return s.tail }
 
 func (s *SkipList) randomLevel() int {
 	level := 1
@@ -80,8 +80,8 @@ func (s *SkipList) randomLevel() int {
 	return level
 }
 
-func (s *SkipList) Insert(score int64, val string) *node {
-	update := make([]*node, s.maxLevel)
+func (s *SkipList) Insert(score int64, val string) *Node {
+	update := make([]*Node, s.maxLevel)
 	rank := make([]uint, s.maxLevel)
 
 	// Search the insert location, also calculates `update` and `rank`.
@@ -157,7 +157,7 @@ func (s *SkipList) Insert(score int64, val string) *node {
 }
 
 func (s *SkipList) Delete(score int64, val string) bool {
-	update := make([]*node, s.maxLevel)
+	update := make([]*Node, s.maxLevel)
 	n := s.header
 	for i := s.level - 1; i >= 0; i-- {
 		for n.levels[i].next != nil &&
@@ -176,7 +176,7 @@ func (s *SkipList) Delete(score int64, val string) bool {
 	return false
 }
 
-func (s *SkipList) delete(n *node, update []*node) {
+func (s *SkipList) delete(n *Node, update []*Node) {
 	// Delete node and update span for all levels.
 	for i := 0; i < s.level; i++ {
 		if update[i].levels[i].next == n {
@@ -201,6 +201,32 @@ func (s *SkipList) delete(n *node, update []*node) {
 	s.length -= 1
 }
 
+func (s *SkipList) Update(score int64, val string, newscore int64) *Node {
+	update := make([]*Node, s.maxLevel)
+	n := s.header
+	for i := s.level - 1; i >= 0; i-- {
+		for n.levels[i].next != nil &&
+			(n.levels[i].next.score < score ||
+				(n.levels[i].next.score == score && strcmp(n.levels[i].next.val, val) < 0)) {
+			n = n.levels[i].next
+		}
+		update[i] = n
+	}
+
+	// If the node would be still exactly at the same position, after the
+	// score update, we can just update the score without actually removing
+	// and re-inserting the element in the skiplist.
+	n = n.levels[0].next
+	if (n.pre == nil || n.pre.score < newscore) &&
+		(n.levels[0].next == nil || n.levels[0].next.score > newscore) {
+		n.score = newscore
+		return n
+	}
+
+	s.delete(n, update)
+	return s.Insert(newscore, n.val)
+}
+
 func (s *SkipList) rng() *rng.Int64 {
 	if s.length == 0 {
 		return rng.NewInt64(0, 0, true, true)
@@ -208,7 +234,7 @@ func (s *SkipList) rng() *rng.Int64 {
 	return rng.NewInt64(s.Head().score, s.Tail().score, false, false)
 }
 
-func (s *SkipList) FirstInRange(r *rng.Int64) *node {
+func (s *SkipList) FirstInRange(r *rng.Int64) *Node {
 	if s.length == 0 {
 		return nil
 	}
@@ -230,7 +256,7 @@ func (s *SkipList) FirstInRange(r *rng.Int64) *node {
 	return n.levels[0].next
 }
 
-func (s *SkipList) LastInRange(r *rng.Int64) *node {
+func (s *SkipList) LastInRange(r *rng.Int64) *Node {
 	if s.length == 0 {
 		return nil
 	}
@@ -253,7 +279,7 @@ func (s *SkipList) LastInRange(r *rng.Int64) *node {
 }
 
 func (s *SkipList) DeleteByRange(r *rng.Int64) (removed int) {
-	update := make([]*node, s.maxLevel)
+	update := make([]*Node, s.maxLevel)
 
 	n := s.header
 	for i := s.level - 1; i >= 0; i-- {
@@ -274,15 +300,15 @@ func (s *SkipList) DeleteByRange(r *rng.Int64) (removed int) {
 	return removed
 }
 
-type node struct {
+type Node struct {
 	val    string
 	score  int64
-	pre    *node
+	pre    *Node
 	levels []_nodeLevel
 }
 
-func newNode(level int, score int64, val string) *node {
-	return &node{
+func newNode(level int, score int64, val string) *Node {
+	return &Node{
 		val:    val,
 		score:  score,
 		pre:    nil,
@@ -290,11 +316,13 @@ func newNode(level int, score int64, val string) *node {
 	}
 }
 
-func (n *node) Val() string { return n.val }
+func (n *Node) Val() string { return n.val }
 
-func (n *node) Score() int64 { return n.score }
+func (n *Node) Score() int64 { return n.score }
+
+func (n *Node) Next() *Node { return n.levels[0].next }
 
 type _nodeLevel struct {
-	next *node
+	next *Node
 	span uint
 }
